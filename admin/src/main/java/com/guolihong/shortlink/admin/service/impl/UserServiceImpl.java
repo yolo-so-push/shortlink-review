@@ -134,6 +134,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         baseMapper.update(BeanUtil.toBean(requestParam,UserDO.class),eq);
     }
 
+    /**
+     * 用户登录功能
+     * @param requestParam
+     * @return
+     */
     @Override
     public UserLoginRespDTO login(UserLoginReqDTO requestParam) {
         LambdaQueryWrapper<UserDO> eq = Wrappers.lambdaQuery(UserDO.class)
@@ -156,6 +161,25 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         stringRedisTemplate.opsForHash().put(USER_LOGIN_KEY+requestParam.getUsername(),token,JSON.toJSONString(userDO));
         stringRedisTemplate.expire(USER_LOGIN_KEY+requestParam.getUsername(),30L,TimeUnit.MINUTES);
         return new UserLoginRespDTO(token);
+    }
+
+    /**
+     * 检查用户是否登录
+     * @param username
+     * @param token
+     * @return
+     */
+    @Override
+    public Boolean checkLogin(String username, String token) {
+       return stringRedisTemplate.opsForHash().get(USER_LOGIN_KEY + username, token)!= null;
+    }
+
+    @Override
+    public void logout(String username, String token) {
+        if (!checkLogin(username,token)){
+            throw new ClientException("用户token不存在或用户未登录");
+        }
+        stringRedisTemplate.delete(USER_LOGIN_KEY+username);
     }
 
 }

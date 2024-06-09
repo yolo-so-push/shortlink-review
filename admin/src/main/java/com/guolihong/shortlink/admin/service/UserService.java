@@ -46,5 +46,15 @@ public interface UserService extends IService<UserDO> {
      */
     void updateUser(UserUpdateReqDTO requestParam);
 
+    /**
+     * 用户登录功能
+     * @param requestParam
+     * @return
+     */
+
     UserLoginRespDTO login(UserLoginReqDTO requestParam);
+
+    Boolean checkLogin(String username, String token);
+
+    void logout(String username, String token);
 }

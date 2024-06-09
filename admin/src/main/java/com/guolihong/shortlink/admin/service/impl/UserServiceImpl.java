@@ -10,6 +10,7 @@ import com.guolihong.shortlink.admin.common.enums.UserErrorCodeEnum;
 import com.guolihong.shortlink.admin.dao.entity.UserDO;
 import com.guolihong.shortlink.admin.dao.mapper.UserMapper;
 import com.guolihong.shortlink.admin.dto.req.UserRegisterReqDTO;
+import com.guolihong.shortlink.admin.dto.resp.UserActualRespDTO;
 import com.guolihong.shortlink.admin.dto.resp.UserRespDTO;
 import com.guolihong.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,22 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         UserRespDTO result = new UserRespDTO();
         BeanUtils.copyProperties(userDO,result);
+        return result;
+    }
+
+    /**
+     * 根据用户名查询用户未脱敏信息
+     * @param username
+     * @return
+     */
+    @Override
+    public UserActualRespDTO getActualByUsername(String username) {
+        LambdaQueryWrapper<UserDO> lambdaQueryWrapper = Wrappers.lambdaQuery(UserDO.class).eq(UserDO::getUsername, username);
+        UserDO userDO = baseMapper.selectOne(lambdaQueryWrapper);
+        if (userDO==null){
+            throw new ServiceException(UserErrorCodeEnum.USER_NULL);
+        }
+        UserActualRespDTO result = BeanUtil.toBean(userDO, UserActualRespDTO.class);
         return result;
     }
 

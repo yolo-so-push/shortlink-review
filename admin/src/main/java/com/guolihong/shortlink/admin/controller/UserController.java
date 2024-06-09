@@ -1,8 +1,11 @@
 package com.guolihong.shortlink.admin.controller;
 
+import cn.hutool.core.bean.BeanUtil;
 import com.guolihong.shortlink.admin.common.convention.result.Result;
 import com.guolihong.shortlink.admin.common.convention.result.Results;
+import com.guolihong.shortlink.admin.dao.entity.UserDO;
 import com.guolihong.shortlink.admin.dto.req.UserRegisterReqDTO;
+import com.guolihong.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.guolihong.shortlink.admin.dto.resp.UserActualRespDTO;
 import com.guolihong.shortlink.admin.dto.resp.UserRespDTO;
 import com.guolihong.shortlink.admin.service.UserService;
@@ -54,6 +57,17 @@ public class UserController {
     @PostMapping("/api/short-link/admin/v1/user")
     public Result<Void> register(@RequestBody UserRegisterReqDTO requestParam){
         userService.register(requestParam);
+        return Results.success();
+    }
+
+    /**
+     * 修改用户信息
+     * @param requestParam 请求参数
+     * @return
+     */
+    @PutMapping("/api/short-link/admin/v1/user")
+    public Result<Void> updateUser(@RequestBody UserUpdateReqDTO requestParam){
+        userService.updateUser(requestParam);
         return Results.success();
     }
 }

@@ -3,6 +3,7 @@ package com.guolihong.shortlink.admin.controller;
 import com.guolihong.shortlink.admin.common.convention.result.Result;
 import com.guolihong.shortlink.admin.common.convention.result.Results;
 import com.guolihong.shortlink.admin.dto.req.ShortLinkGroupSaveReqDTO;
+import com.guolihong.shortlink.admin.dto.req.ShortLinkGroupSortReqDTO;
 import com.guolihong.shortlink.admin.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.guolihong.shortlink.admin.dto.resp.ShortLinkGroupRespDTO;
 import com.guolihong.shortlink.admin.service.GroupService;
@@ -55,6 +56,12 @@ public class GroupController {
     @DeleteMapping("/api/short-link/admin/v1/group")
     public Result<Void> deleteGroup(@RequestParam("gid") String gid){
         groupService.delete(gid);
+        return Results.success();
+    }
+
+    @PostMapping("/api/short-link/admin/v1/group/sort")
+    public Result<Void> sortedGroup(@RequestBody List<ShortLinkGroupSortReqDTO> requestParam){
+        groupService.sortedGroup(requestParam);
         return Results.success();
     }
 

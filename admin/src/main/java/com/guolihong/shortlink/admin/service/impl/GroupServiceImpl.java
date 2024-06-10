@@ -11,6 +11,7 @@ import com.guolihong.shortlink.admin.common.convention.exception.ClientException
 import com.guolihong.shortlink.admin.dao.entity.GroupDO;
 import com.guolihong.shortlink.admin.dao.mapper.GroupMapper;
 import com.guolihong.shortlink.admin.dto.req.ShortLinkGroupSaveReqDTO;
+import com.guolihong.shortlink.admin.dto.req.ShortLinkGroupSortReqDTO;
 import com.guolihong.shortlink.admin.dto.req.ShortLinkGroupUpdateReqDTO;
 import com.guolihong.shortlink.admin.dto.resp.ShortLinkGroupRespDTO;
 import com.guolihong.shortlink.admin.service.GroupService;
@@ -50,7 +51,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         LambdaQueryWrapper<GroupDO> eq = Wrappers.lambdaQuery(GroupDO.class)
                 .eq(GroupDO::getUsername, UserContext.getUsername())
                 .eq(GroupDO::getDelFlag, 0)
-                .orderByDesc(GroupDO::getSortOrder);
+                .orderByDesc(GroupDO::getSortOrder,GroupDO::getUpdateTime);
         List<GroupDO> groupDOS = baseMapper.selectList(eq);
         List<ShortLinkGroupRespDTO> shortLinkGroupRespDTOS = BeanUtil.copyToList(groupDOS, ShortLinkGroupRespDTO.class);
         //TODO 这里需要远程调用project服务，查询当前用户的分组下短链接的个数
@@ -85,6 +86,22 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         GroupDO groupDO=new GroupDO();
         groupDO.setDelFlag(1);
         baseMapper.update(groupDO,eq);
+    }
+
+    /**
+     * 修改分组排血
+     * @param requestParam
+     */
+    @Override
+    public void sortedGroup(List<ShortLinkGroupSortReqDTO> requestParam) {
+        requestParam.forEach(g->{
+            GroupDO groupDO=GroupDO.builder().sortOrder(g.getSortOrder()).build();
+            LambdaUpdateWrapper<GroupDO> eq = Wrappers.lambdaUpdate(GroupDO.class)
+                    .eq(GroupDO::getGid, g.getGid())
+                    .eq(GroupDO::getDelFlag, 0)
+                    .eq(GroupDO::getUsername, UserContext.getUsername());
+            baseMapper.update(groupDO,eq);
+        });
     }
 
     //使用加锁的方式新增短链接，避免并发安全问题

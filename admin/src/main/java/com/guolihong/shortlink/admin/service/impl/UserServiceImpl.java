@@ -18,6 +18,7 @@ import com.guolihong.shortlink.admin.dto.req.UserUpdateReqDTO;
 import com.guolihong.shortlink.admin.dto.resp.UserActualRespDTO;
 import com.guolihong.shortlink.admin.dto.resp.UserLoginRespDTO;
 import com.guolihong.shortlink.admin.dto.resp.UserRespDTO;
+import com.guolihong.shortlink.admin.service.GroupService;
 import com.guolihong.shortlink.admin.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
@@ -27,6 +28,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
@@ -46,6 +48,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     //redisson客户端
     private final RedissonClient redissonClient;
     private final StringRedisTemplate stringRedisTemplate;
+    private final GroupService groupService;
     /**
      * 根据用户名查询用户是否存在
      * @param username 用户名
@@ -94,6 +97,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      * @param requestParam
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void register(UserRegisterReqDTO requestParam) {
         if (!hasUsername(requestParam.getUsername())){
             //用户名已存在
@@ -113,7 +117,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             }
             //将用户名保存到布隆过滤器中
             userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
-            //TODO 为用户创建默认分组
+            //为用户创建默认分组
+            groupService.saveGroup(userDO.getUsername(),"默认分组");
         }catch (DuplicateKeyException e){
             log.error("用户注册异常："+e);
             throw new ServiceException(UserErrorCodeEnum.USER_EXIST);

@@ -72,6 +72,21 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         baseMapper.update(groupDO,eq);
     }
 
+    /**
+     * 删除短链接
+     * @param gid
+     */
+    @Override
+    public void delete(String gid) {
+        LambdaUpdateWrapper<GroupDO> eq = Wrappers.lambdaUpdate(GroupDO.class)
+                .eq(GroupDO::getUsername, UserContext.getUsername())
+                .eq(GroupDO::getGid, gid)
+                .eq(GroupDO::getDelFlag, 0);
+        GroupDO groupDO=new GroupDO();
+        groupDO.setDelFlag(1);
+        baseMapper.update(groupDO,eq);
+    }
+
     //使用加锁的方式新增短链接，避免并发安全问题
     public void saveGroup(String username, String name) {
         RLock lock = redissonClient.getLock(String.format(RedisCacheConstant.LOCK_GROUP_CREATE_KEY,username));

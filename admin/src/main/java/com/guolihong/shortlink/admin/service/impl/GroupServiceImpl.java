@@ -84,6 +84,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
                 .eq(GroupDO::getGid, gid)
                 .eq(GroupDO::getDelFlag, 0);
         GroupDO groupDO=new GroupDO();
+        //TODO 这里需要将当前分组下的短链接移入回收站
         groupDO.setDelFlag(1);
         baseMapper.update(groupDO,eq);
     }

@@ -1,9 +1,12 @@
 package com.guolihong.shortlink.project.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.guolihong.shortlink.project.dao.entity.ShortLinkDO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
+import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 
 public interface ShortLinkService extends IService<ShortLinkDO> {
     /**
@@ -19,4 +22,11 @@ public interface ShortLinkService extends IService<ShortLinkDO> {
      * @return
      */
     ShortLinkCreateRespDTO createShortLinkByLock(ShortLinkCreateReqDTO requestParam);
+
+    /**
+     * 短链接分页查询
+     * @param requestParam
+     * @return
+     */
+    IPage<ShortLinkPageRespDTO> pageQuery(ShortLinkPageReqDTO requestParam);
 }

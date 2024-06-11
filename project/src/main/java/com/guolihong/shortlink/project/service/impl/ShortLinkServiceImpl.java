@@ -1,8 +1,10 @@
 package com.guolihong.shortlink.project.service.impl;
 
+import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.text.StrBuilder;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.guolihong.shortlink.project.common.convention.exception.ClientException;
@@ -13,7 +15,9 @@ import com.guolihong.shortlink.project.dao.entity.ShortLinkGotoDO;
 import com.guolihong.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.guolihong.shortlink.project.dao.mapper.ShortLinkMapper;
 import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
+import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.guolihong.shortlink.project.service.ShortLinkService;
 import com.guolihong.shortlink.project.toolkit.HashUtil;
 import com.guolihong.shortlink.project.toolkit.LinkUtil;
@@ -29,6 +33,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -55,6 +60,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * @return
      */
     @Override
+    @Transactional
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
         // 检查原始连接是否在白名单内
         verificationWhitelist(requestParam.getOriginUrl());
@@ -106,6 +112,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * @return
      */
     @Override
+    @Transactional
     public ShortLinkCreateRespDTO createShortLinkByLock(ShortLinkCreateReqDTO requestParam) {
         verificationWhitelist(requestParam.getOriginUrl());
         String fullShortUrl;
@@ -158,6 +165,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .originUrl(requestParam.getOriginUrl())
                 .gid(requestParam.getGid())
                 .build();
+    }
+
+    @Override
+    public IPage<ShortLinkPageRespDTO> pageQuery(ShortLinkPageReqDTO requestParam) {
+        IPage<ShortLinkDO> shortLinkDOIPage = baseMapper.pageLink(requestParam);
+        return shortLinkDOIPage.convert(e->{
+            ShortLinkPageRespDTO shortLinkPageRespDTO = BeanUtil.toBean(e, ShortLinkPageRespDTO.class);
+            shortLinkPageRespDTO.setDomain("http://"+e.getDomain());
+            return shortLinkPageRespDTO;
+        });
     }
 
     private String generateSuffixByLock(ShortLinkCreateReqDTO requestParam) {

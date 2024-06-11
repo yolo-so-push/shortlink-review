@@ -1,6 +1,9 @@
 package com.guolihong.shortlink.project.service.impl;
 
+import cn.hutool.core.text.StrBuilder;
 import cn.hutool.core.util.StrUtil;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.guolihong.shortlink.project.common.convention.exception.ClientException;
 import com.guolihong.shortlink.project.common.convention.exception.ServiceException;
@@ -20,6 +23,8 @@ import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.redisson.api.RBloomFilter;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
@@ -32,6 +37,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.GOTO_SHORT_LINK_KEY;
+import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.SHORT_LINK_CREATE_LOCK_KEY;
 
 @Service
 @RequiredArgsConstructor
@@ -42,6 +48,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final ShortLinkGotoMapper shortLinkGotoMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final GotoDomainWhiteListConfiguration gotoDomainWhiteListConfiguration;
+    private final RedissonClient redissonClient;
     /**
      * 创建短链接
      * @param requestParam
@@ -93,9 +100,90 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .build();
     }
 
+    /**
+     * 基于分布式锁的方式创建短链接
+     * @param requestParam
+     * @return
+     */
+    @Override
+    public ShortLinkCreateRespDTO createShortLinkByLock(ShortLinkCreateReqDTO requestParam) {
+        verificationWhitelist(requestParam.getOriginUrl());
+        String fullShortUrl;
+        // 为什么说布隆过滤器性能远胜于分布式锁？这里对字符串加锁，所有的请求只有一个线程可以获取锁，性能太差
+        RLock lock = redissonClient.getLock(SHORT_LINK_CREATE_LOCK_KEY);
+        lock.lock();
+        try {
+            String shortLinkSuffix = generateSuffixByLock(requestParam);
+            fullShortUrl = StrBuilder.create(createShortLinkDefaultDomain)
+                    .append("/")
+                    .append(shortLinkSuffix)
+                    .toString();
+            ShortLinkDO shortLinkDO = ShortLinkDO.builder()
+                    .domain(createShortLinkDefaultDomain)
+                    .originUrl(requestParam.getOriginUrl())
+                    .gid(requestParam.getGid())
+                    .createdType(requestParam.getCreatedType())
+                    .validDateType(requestParam.getValidDateType())
+                    .validDate(requestParam.getValidDate())
+                    .describe(requestParam.getDescribe())
+                    .shortUri(shortLinkSuffix)
+                    .enableStatus(0)
+                    .totalPv(0)
+                    .totalUv(0)
+                    .totalUip(0)
+                    .delTime(0L)
+                    .fullShortUrl(fullShortUrl)
+                    .favicon(getFavicon(requestParam.getOriginUrl()))
+                    .build();
+            ShortLinkGotoDO linkGotoDO = ShortLinkGotoDO.builder()
+                    .fullShortUrl(fullShortUrl)
+                    .gid(requestParam.getGid())
+                    .build();
+            try {
+                baseMapper.insert(shortLinkDO);
+                shortLinkGotoMapper.insert(linkGotoDO);
+            } catch (DuplicateKeyException ex) {
+                throw new ServiceException(String.format("短链接：%s 生成重复", fullShortUrl));
+            }
+            stringRedisTemplate.opsForValue().set(
+                    String.format(GOTO_SHORT_LINK_KEY, fullShortUrl),
+                    requestParam.getOriginUrl(),
+                    LinkUtil.getLinkCacheValidTime(requestParam.getValidDate()), TimeUnit.MILLISECONDS
+            );
+        } finally {
+            lock.unlock();
+        }
+        return ShortLinkCreateRespDTO.builder()
+                .fullShortUrl("http://" + fullShortUrl)
+                .originUrl(requestParam.getOriginUrl())
+                .gid(requestParam.getGid())
+                .build();
+    }
+
+    private String generateSuffixByLock(ShortLinkCreateReqDTO requestParam) {
+        String suffix;
+        int customGenCount=0;
+        while (true){
+            if (customGenCount>10){
+                throw new ServiceException("短链接重复创建，请稍后再试");
+            }
+            suffix= HashUtil.hashToBase62(requestParam.getOriginUrl()+ UUID.randomUUID());
+            LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
+                    .eq(ShortLinkDO::getGid, requestParam.getGid())
+                    .eq(ShortLinkDO::getFullShortUrl, createShortLinkDefaultDomain + "/" + suffix)
+                    .eq(ShortLinkDO::getDelFlag, 0);
+            ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
+            if (shortLinkDO==null){
+                break;
+            }
+            customGenCount++;
+        }
+        return suffix;
+    }
+
     private void verificationWhitelist(String originUrl) {
         Boolean enable = gotoDomainWhiteListConfiguration.getEnable();
-        if (enable==null||enable==false){
+        if (enable==null|| !enable){
             return;
         }
         //通过原始链接获取网站域名

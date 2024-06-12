@@ -7,7 +7,10 @@ import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.guolihong.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
+
+import java.util.List;
 
 public interface ShortLinkService extends IService<ShortLinkDO> {
     /**
@@ -31,5 +34,16 @@ public interface ShortLinkService extends IService<ShortLinkDO> {
      */
     IPage<ShortLinkPageRespDTO> pageQuery(ShortLinkPageReqDTO requestParam);
 
+    /**
+     * 更新短链接
+     * @param requestParam
+     */
     void updateShortLink(ShortLinkUpdateReqDTO requestParam);
+
+    /**
+     * 查询分组下短链接个数
+     * @param requestParam
+     * @return
+     */
+    List<ShortLinkGroupCountQueryRespDTO> queryGroupLinkCount(List<String> requestParam);
 }

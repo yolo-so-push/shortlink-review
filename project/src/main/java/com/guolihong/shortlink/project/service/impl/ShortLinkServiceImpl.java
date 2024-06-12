@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.text.StrBuilder;
 import cn.hutool.core.util.StrUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -21,6 +22,7 @@ import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
+import com.guolihong.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.guolihong.shortlink.project.service.ShortLinkService;
 import com.guolihong.shortlink.project.toolkit.HashUtil;
@@ -43,6 +45,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
@@ -182,6 +185,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             return shortLinkPageRespDTO;
         });
     }
+
+    /**
+     * 更新短链接
+     * @param requestParam
+     */
     @Transactional
     @Override
     public void updateShortLink(ShortLinkUpdateReqDTO requestParam) {
@@ -265,6 +273,25 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         }
         //TODO 还需要保持缓存中数据和短链接数据一致
 
+    }
+
+    /**
+     * 查询分组下短链接个数
+     * @param requestParam
+     * @return
+     */
+    @Override
+    public List<ShortLinkGroupCountQueryRespDTO> queryGroupLinkCount(List<String> requestParam) {
+        //select gid,count(gid) as count from t_link where gid in (gids) group by gid;
+        QueryWrapper<ShortLinkDO> shortLinkDOQueryWrapper = Wrappers.query(new ShortLinkDO())
+                .select("gid as gid,count(*) as shortLinkCount")
+                .in("gid", requestParam)
+                .eq("enable_status", 0)
+                .eq("del_flag", 0)
+                .eq("del_time", 0L)
+                .groupBy("gid");
+        List<Map<String, Object>> maps = baseMapper.selectMaps(shortLinkDOQueryWrapper);
+        return BeanUtil.copyToList(maps,ShortLinkGroupCountQueryRespDTO.class);
     }
 
     private String generateSuffixByLock(ShortLinkCreateReqDTO requestParam) {

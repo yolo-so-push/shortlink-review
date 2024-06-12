@@ -27,6 +27,9 @@ import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.guolihong.shortlink.project.service.ShortLinkService;
 import com.guolihong.shortlink.project.toolkit.HashUtil;
 import com.guolihong.shortlink.project.toolkit.LinkUtil;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.jsoup.Jsoup;
@@ -44,14 +47,10 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
-import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.GOTO_SHORT_LINK_KEY;
-import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.SHORT_LINK_CREATE_LOCK_KEY;
+import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.*;
 
 @Service
 @RequiredArgsConstructor
@@ -74,7 +73,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // 检查原始连接是否在白名单内
         verificationWhitelist(requestParam.getOriginUrl());
         String suffix=generateSuffix(requestParam);
-        String fullShortUrl=requestParam.getDomain()+"/"+suffix;
+        String fullShortUrl = StrBuilder.create(createShortLinkDefaultDomain)
+                .append("/")
+                .append(suffix)
+                .toString();
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
                 .domain(createShortLinkDefaultDomain)
                 .originUrl(requestParam.getOriginUrl())
@@ -108,6 +110,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         //将创建的短链接放入到redis中,这里如果短链接为永久有效则使用默认有效期，负责使用用户提供的有效期
         stringRedisTemplate.opsForValue().set(String.format(GOTO_SHORT_LINK_KEY,fullShortUrl)
                 ,requestParam.getOriginUrl(), LinkUtil.getLinkCacheValidTime(requestParam.getValidDate()), TimeUnit.MILLISECONDS);
+        shortLinkCachePenetrationBloomFilter.add(fullShortUrl);
         return ShortLinkCreateRespDTO.builder()
                 .fullShortUrl("http://"+fullShortUrl)
                 .gid(requestParam.getGid())
@@ -292,6 +295,78 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .groupBy("gid");
         List<Map<String, Object>> maps = baseMapper.selectMaps(shortLinkDOQueryWrapper);
         return BeanUtil.copyToList(maps,ShortLinkGroupCountQueryRespDTO.class);
+    }
+
+    @SneakyThrows
+    @Override
+    public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
+        //不理解
+        String serverName = request.getServerName();
+        String serverPort = Optional.of(request.getServerPort()).filter(e -> !Objects.equals(e, 80))
+                .map(String::valueOf)
+                .map(e -> ":" + e)
+                .orElse("");
+        String fullShortUrl=serverName+serverPort+"/"+shortUri;
+        //查询缓存中是否有
+        String originUrl = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY,fullShortUrl));
+        if (StrUtil.isNotBlank(originUrl)){
+            //TODO 这里需要监控统计
+           ((HttpServletResponse)response).sendRedirect(originUrl); //跳转原始连接
+            return;
+        }
+        //缓存中不存在，判断布隆过滤器中是否存在
+        boolean contains = shortLinkCachePenetrationBloomFilter.contains(fullShortUrl);
+        if (!contains){
+            //TODO 跳转404
+            return;
+        }
+        //判断是否缓存了空数据,缓存穿透，并且布隆过滤器误判
+        String goToNull = stringRedisTemplate.opsForValue().get(GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl);
+        if (StrUtil.isNotBlank(goToNull)){
+            //缓存中为空数据 TODO 跳转404
+            return;
+        }
+        //加锁查询数据库
+        RLock lock = redissonClient.getLock(LOCK_GOTO_SHORT_LINK_KEY + fullShortUrl);
+        lock.lock();
+        try {
+            //加锁后还需要再次判断缓存
+            originUrl = stringRedisTemplate.opsForValue().get(GOTO_SHORT_LINK_KEY + fullShortUrl);
+            if (StrUtil.isNotBlank(originUrl)){
+                //TODO 这里需要监控统计
+                ((HttpServletResponse)response).sendRedirect(originUrl); //跳转原始连接
+                return;
+            }
+            goToNull = stringRedisTemplate.opsForValue().get(GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl);
+            if (StrUtil.isNotBlank(goToNull)){
+                //缓存中为空数据 TODO 跳转404
+                return;
+            }
+            LambdaQueryWrapper<ShortLinkGotoDO> eq = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
+                    .eq(ShortLinkGotoDO::getFullShortUrl,fullShortUrl);
+            ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(eq);
+            if (shortLinkGotoDO==null){
+                stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY,fullShortUrl),"-",30,TimeUnit.SECONDS);
+                // TODO 跳转404
+                return;
+            }
+            LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
+                    .eq(ShortLinkDO::getGid, shortLinkGotoDO.getGid())
+                    .eq(ShortLinkDO::getFullShortUrl, fullShortUrl)
+                    .eq(ShortLinkDO::getEnableStatus, 0)
+                    .eq(ShortLinkDO::getDelTime, 0);
+            ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
+            if (shortLinkDO==null||(shortLinkDO.getCreateTime()!=null&&shortLinkDO.getCreateTime().before(new Date()))){
+                stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY,fullShortUrl),"-",30,TimeUnit.SECONDS);
+                // TODO 跳转404
+                return;
+            }
+            stringRedisTemplate.opsForValue().set(String.format(GOTO_SHORT_LINK_KEY,fullShortUrl),shortLinkDO.getOriginUrl(),LinkUtil.getLinkCacheValidTime(shortLinkDO.getValidDate()),TimeUnit.MILLISECONDS);
+            //TODO 监控统计
+            ((HttpServletResponse)response).sendRedirect(shortLinkDO.getOriginUrl());
+        }finally {
+            lock.unlock();
+        }
     }
 
     private String generateSuffixByLock(ShortLinkCreateReqDTO requestParam) {

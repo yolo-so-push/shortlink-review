@@ -18,7 +18,7 @@ short-link:
     default: nurl.ink:8001
   goto-domain:
     white-list:
-      enable: true
+      enable: false
       names: '拿个offer,知乎，掘金，博客园'
       details:
         - nageoffer.com

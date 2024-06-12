@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.guolihong.shortlink.project.dao.entity.ShortLinkDO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
+import com.guolihong.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 
@@ -29,4 +30,6 @@ public interface ShortLinkService extends IService<ShortLinkDO> {
      * @return
      */
     IPage<ShortLinkPageRespDTO> pageQuery(ShortLinkPageReqDTO requestParam);
+
+    void updateShortLink(ShortLinkUpdateReqDTO requestParam);
 }

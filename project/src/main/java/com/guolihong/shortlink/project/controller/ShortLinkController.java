@@ -5,6 +5,7 @@ import com.guolihong.shortlink.project.common.convention.result.Result;
 import com.guolihong.shortlink.project.common.convention.result.Results;
 import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
+import com.guolihong.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.guolihong.shortlink.project.service.ShortLinkService;
@@ -47,5 +48,13 @@ public class ShortLinkController {
     @GetMapping("/api/short-link/v1/page")
     public Result<IPage<ShortLinkPageRespDTO>> shortLinkPageQuery(ShortLinkPageReqDTO requestParam){
         return Results.success(shortLinkService.pageQuery(requestParam));
+    }
+    /**
+     * 修改短链接
+     */
+    @PostMapping("/api/short-link/v1/update")
+    public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO requestParam){
+        shortLinkService.updateShortLink(requestParam);
+        return Results.success();
     }
 }

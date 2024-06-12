@@ -22,6 +22,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.guolihong.shortlink.project.dao.entity.ShortLinkDO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
+import com.guolihong.shortlink.project.dto.req.ShortLinkRecycleBinPageReqDTO;
 
 /**
  * 短链接持久层
@@ -34,4 +35,6 @@ public interface ShortLinkMapper extends BaseMapper<ShortLinkDO> {
      * @return
      */
     IPage<ShortLinkDO> pageLink(ShortLinkPageReqDTO requestParam);
+
+    IPage<ShortLinkDO> recyclePageLink(ShortLinkRecycleBinPageReqDTO requestParam);
 }

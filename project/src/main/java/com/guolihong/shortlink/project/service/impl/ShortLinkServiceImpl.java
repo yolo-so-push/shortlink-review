@@ -68,7 +68,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * @return
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
         // 检查原始连接是否在白名单内
         verificationWhitelist(requestParam.getOriginUrl());
@@ -124,7 +124,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * @return
      */
     @Override
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public ShortLinkCreateRespDTO createShortLinkByLock(ShortLinkCreateReqDTO requestParam) {
         verificationWhitelist(requestParam.getOriginUrl());
         String fullShortUrl;
@@ -193,7 +193,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * 更新短链接
      * @param requestParam
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public void updateShortLink(ShortLinkUpdateReqDTO requestParam) {
         // 检查原始连接是否在白名单内
@@ -274,7 +274,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 rLock.unlock();
             }
         }
-        //TODO 还需要保持缓存中数据和短链接数据一致
+        //还需要保持缓存中数据和短链接数据一致
+        stringRedisTemplate.delete(String.format(GOTO_SHORT_LINK_KEY,shortLinkDO.getFullShortUrl()));
+        stringRedisTemplate.delete(String.format(GOTO_IS_NULL_SHORT_LINK_KEY,requestParam.getFullShortUrl()));
 
     }
 
@@ -317,13 +319,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         //缓存中不存在，判断布隆过滤器中是否存在
         boolean contains = shortLinkCachePenetrationBloomFilter.contains(fullShortUrl);
         if (!contains){
-            //TODO 跳转404
+            ((HttpServletResponse)response).sendRedirect("/page/notfound");
             return;
         }
         //判断是否缓存了空数据,缓存穿透，并且布隆过滤器误判
         String goToNull = stringRedisTemplate.opsForValue().get(GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl);
         if (StrUtil.isNotBlank(goToNull)){
-            //缓存中为空数据 TODO 跳转404
+            ((HttpServletResponse)response).sendRedirect("/page/notfound");
             return;
         }
         //加锁查询数据库
@@ -339,7 +341,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             }
             goToNull = stringRedisTemplate.opsForValue().get(GOTO_IS_NULL_SHORT_LINK_KEY + fullShortUrl);
             if (StrUtil.isNotBlank(goToNull)){
-                //缓存中为空数据 TODO 跳转404
+                ((HttpServletResponse)response).sendRedirect("/page/notfound");
                 return;
             }
             LambdaQueryWrapper<ShortLinkGotoDO> eq = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
@@ -347,7 +349,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(eq);
             if (shortLinkGotoDO==null){
                 stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY,fullShortUrl),"-",30,TimeUnit.SECONDS);
-                // TODO 跳转404
+                ((HttpServletResponse)response).sendRedirect("/page/notfound");
                 return;
             }
             LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
@@ -356,9 +358,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .eq(ShortLinkDO::getEnableStatus, 0)
                     .eq(ShortLinkDO::getDelTime, 0);
             ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
-            if (shortLinkDO==null||(shortLinkDO.getCreateTime()!=null&&shortLinkDO.getCreateTime().before(new Date()))){
+            if (shortLinkDO==null||(shortLinkDO.getValidDate()!=null&&shortLinkDO.getValidDate().before(new Date()))){
                 stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY,fullShortUrl),"-",30,TimeUnit.SECONDS);
-                // TODO 跳转404
+                ((HttpServletResponse)response).sendRedirect("/page/notfound");
                 return;
             }
             stringRedisTemplate.opsForValue().set(String.format(GOTO_SHORT_LINK_KEY,fullShortUrl),shortLinkDO.getOriginUrl(),LinkUtil.getLinkCacheValidTime(shortLinkDO.getValidDate()),TimeUnit.MILLISECONDS);

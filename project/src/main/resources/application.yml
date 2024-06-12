@@ -12,7 +12,10 @@ spring:
       host: 47.95.168.146
       port: 6379
       password: 009217
-
+  mvc:
+    view:
+      prefix: /templates/
+      suffix: .html
 short-link:
   domain:
     default: nurl.ink:8001

@@ -3,9 +3,11 @@ package com.guolihong.shortlink.project.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.guolihong.shortlink.project.common.convention.result.Result;
 import com.guolihong.shortlink.project.common.convention.result.Results;
+import com.guolihong.shortlink.project.dto.req.ShortLinkBatchCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
+import com.guolihong.shortlink.project.dto.resp.ShortLinkBatchCreateRespDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
 import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
@@ -42,6 +44,10 @@ public class ShortLinkController {
         return Results.success(shortLinkService.createShortLinkByLock(requestParam));
     }
 
+    @PostMapping("/api/short-link/v1/create/batch")
+    public Result<ShortLinkBatchCreateRespDTO> batchCreateShortLink(@RequestBody ShortLinkBatchCreateReqDTO requestParam){
+        return Results.success(shortLinkService.batchCreateShortLink(requestParam));
+    }
     /**
      * 短链接分页查询
      * @param requestParam

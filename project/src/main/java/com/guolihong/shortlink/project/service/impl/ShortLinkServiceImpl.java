@@ -18,12 +18,11 @@ import com.guolihong.shortlink.project.dao.entity.ShortLinkDO;
 import com.guolihong.shortlink.project.dao.entity.ShortLinkGotoDO;
 import com.guolihong.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.guolihong.shortlink.project.dao.mapper.ShortLinkMapper;
+import com.guolihong.shortlink.project.dto.req.ShortLinkBatchCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
-import com.guolihong.shortlink.project.dto.resp.ShortLinkCreateRespDTO;
-import com.guolihong.shortlink.project.dto.resp.ShortLinkGroupCountQueryRespDTO;
-import com.guolihong.shortlink.project.dto.resp.ShortLinkPageRespDTO;
+import com.guolihong.shortlink.project.dto.resp.*;
 import com.guolihong.shortlink.project.service.ShortLinkService;
 import com.guolihong.shortlink.project.toolkit.HashUtil;
 import com.guolihong.shortlink.project.toolkit.LinkUtil;
@@ -32,6 +31,7 @@ import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -54,6 +54,7 @@ import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.*
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLinkDO> implements ShortLinkService {
     private final RBloomFilter<String> shortLinkCachePenetrationBloomFilter;
     @Value("${short-link.domain.default}")
@@ -369,6 +370,33 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         }finally {
             lock.unlock();
         }
+    }
+
+    @Override
+    public ShortLinkBatchCreateRespDTO batchCreateShortLink(ShortLinkBatchCreateReqDTO requestParam) {
+        List<String> describes = requestParam.getDescribes();
+        List<String> originUrls = requestParam.getOriginUrls();
+        List<ShortLinkBaseInfoRespDTO> result=new ArrayList<>();
+        for (int i = 0; i < describes.size(); i++) {
+            ShortLinkCreateReqDTO shortLinkCreateReqDTO = BeanUtil.toBean(requestParam, ShortLinkCreateReqDTO.class);
+            shortLinkCreateReqDTO.setDescribe(describes.get(i));
+            shortLinkCreateReqDTO.setOriginUrl(describes.get(i));
+            try {
+                ShortLinkCreateRespDTO shortLink = createShortLink(shortLinkCreateReqDTO);
+                ShortLinkBaseInfoRespDTO baseInfoRespDTO = ShortLinkBaseInfoRespDTO.builder()
+                        .describe(describes.get(i))
+                        .originUrl(originUrls.get(i))
+                        .fullShortUrl(shortLink.getFullShortUrl())
+                        .build();
+                result.add(baseInfoRespDTO);
+            }catch (Exception e){
+                log.error("批量创建短链接失败，原始参数：{}", originUrls.get(i));
+            }
+        }
+        return ShortLinkBatchCreateRespDTO.builder()
+                .total(originUrls.size())
+                .baseLinkInfos(result)
+                .build();
     }
 
     private String generateSuffixByLock(ShortLinkCreateReqDTO requestParam) {

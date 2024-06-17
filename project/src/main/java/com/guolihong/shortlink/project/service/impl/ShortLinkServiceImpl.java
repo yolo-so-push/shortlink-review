@@ -2,7 +2,9 @@ package com.guolihong.shortlink.project.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.text.StrBuilder;
+import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
@@ -18,16 +20,20 @@ import com.guolihong.shortlink.project.dao.entity.ShortLinkDO;
 import com.guolihong.shortlink.project.dao.entity.ShortLinkGotoDO;
 import com.guolihong.shortlink.project.dao.mapper.ShortLinkGotoMapper;
 import com.guolihong.shortlink.project.dao.mapper.ShortLinkMapper;
+import com.guolihong.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkBatchCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkCreateReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkPageReqDTO;
 import com.guolihong.shortlink.project.dto.req.ShortLinkUpdateReqDTO;
 import com.guolihong.shortlink.project.dto.resp.*;
+import com.guolihong.shortlink.project.mq.produce.ShortLinkStatsProduce;
 import com.guolihong.shortlink.project.service.ShortLinkService;
 import com.guolihong.shortlink.project.toolkit.HashUtil;
 import com.guolihong.shortlink.project.toolkit.LinkUtil;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -44,11 +50,13 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
+import cn.hutool.core.lang.UUID;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.*;
 
@@ -63,6 +71,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final StringRedisTemplate stringRedisTemplate;
     private final GotoDomainWhiteListConfiguration gotoDomainWhiteListConfiguration;
     private final RedissonClient redissonClient;
+    private final ShortLinkStatsProduce shortLinkStatsProduce;
     /**
      * 创建短链接
      * @param requestParam
@@ -313,7 +322,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         //查询缓存中是否有
         String originUrl = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY,fullShortUrl));
         if (StrUtil.isNotBlank(originUrl)){
-            //TODO 这里需要监控统计
+            //这里需要监控统计
+            shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl,request,response));
            ((HttpServletResponse)response).sendRedirect(originUrl); //跳转原始连接
             return;
         }
@@ -336,7 +346,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             //加锁后还需要再次判断缓存
             originUrl = stringRedisTemplate.opsForValue().get(GOTO_SHORT_LINK_KEY + fullShortUrl);
             if (StrUtil.isNotBlank(originUrl)){
-                //TODO 这里需要监控统计
+                // 这里需要监控统计
+                shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl,request,response));
                 ((HttpServletResponse)response).sendRedirect(originUrl); //跳转原始连接
                 return;
             }
@@ -365,11 +376,74 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 return;
             }
             stringRedisTemplate.opsForValue().set(String.format(GOTO_SHORT_LINK_KEY,fullShortUrl),shortLinkDO.getOriginUrl(),LinkUtil.getLinkCacheValidTime(shortLinkDO.getValidDate()),TimeUnit.MILLISECONDS);
-            //TODO 监控统计
+            shortLinkStats(buildLinkStatsRecordAndSetUser(fullShortUrl, request, response));
             ((HttpServletResponse)response).sendRedirect(shortLinkDO.getOriginUrl());
         }finally {
             lock.unlock();
         }
+    }
+
+    /**
+     * 监控统计并发送消息到消息队列
+     * @param buildLinkStatsRecordAndSetUser
+     */
+    private void shortLinkStats(ShortLinkStatsRecordDTO buildLinkStatsRecordAndSetUser) {
+        Map<String,String> map=new HashMap<>();
+        map.put("statsRecord", JSON.toJSONString(buildLinkStatsRecordAndSetUser));
+        //往消息队列发送消息
+        shortLinkStatsProduce.send(map);
+    }
+
+    /**
+     * 构建监控数据
+     * @param fullShortUrl
+     * @param request
+     * @param response
+     * @return
+     */
+    private ShortLinkStatsRecordDTO buildLinkStatsRecordAndSetUser(String fullShortUrl, ServletRequest request, ServletResponse response) {
+        AtomicReference<String> uv=new AtomicReference<>();
+        Cookie[] cookies = ((HttpServletRequest) request).getCookies();
+        AtomicBoolean uvIsFlag=new AtomicBoolean();
+        Runnable addCookieTask=()->{
+            uv.set(UUID.fastUUID().toString());
+            Cookie uvCookie=new Cookie("uv",uv.get());
+            uvCookie.setMaxAge(60*60*24*30);
+            uvCookie.setPath(StrUtil.sub(fullShortUrl,fullShortUrl.lastIndexOf("/"),fullShortUrl.length()));
+            ((HttpServletResponse)response).addCookie(uvCookie);
+            uvIsFlag.set(Boolean.TRUE);
+            stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY+fullShortUrl,uv.get());
+        };
+        if (ArrayUtil.isNotEmpty(cookies)){
+            Arrays.stream(cookies)
+                    .filter(e->Objects.equals(e.getName(),"uv"))
+                    .map(Cookie::getValue)
+                    .findFirst().ifPresentOrElse(e->{
+                        uv.set(e);
+                        Long add = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, uv.get());
+                        uvIsFlag.set(add!=null&&add>0l);
+                    },addCookieTask);
+        }else{
+            addCookieTask.run();
+        }
+        String actualIp = LinkUtil.getActualIp((HttpServletRequest) request);
+        String browser = LinkUtil.getBrowser((HttpServletRequest) request);
+        String device = LinkUtil.getDevice((HttpServletRequest) request);
+        String os = LinkUtil.getOs((HttpServletRequest) request);
+        String network = LinkUtil.getNetwork((HttpServletRequest) request);
+        Long addUIP = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UIP_KEY + fullShortUrl, actualIp);
+        boolean isFirstUip=addUIP!=null&&addUIP==1l;
+        return ShortLinkStatsRecordDTO.builder()
+                .os(os)
+                .browser(browser)
+                .device(device)
+                .network(network)
+                .remoteAddr(actualIp)
+                .uipFirstFlag(isFirstUip)
+                .uvFirstFlag(uvIsFlag.get())
+                .uv(uv.get())
+                .fullShortUrl(fullShortUrl)
+                .build();
     }
 
     @Override

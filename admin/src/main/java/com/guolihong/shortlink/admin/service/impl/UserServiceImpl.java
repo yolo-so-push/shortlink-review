@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.CollectionUtils;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.guolihong.shortlink.admin.common.biz.user.UserContext;
 import com.guolihong.shortlink.admin.common.convention.exception.ClientException;
 import com.guolihong.shortlink.admin.common.convention.exception.ServiceException;
 import com.guolihong.shortlink.admin.common.enums.UserErrorCodeEnum;
@@ -31,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -133,7 +135,10 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
      */
     @Override
     public void updateUser(UserUpdateReqDTO requestParam) {
-        //TODO 需要校验修改的是否是当前登录用户的信息，根据登录凭证
+        //需要校验修改的是否是当前登录用户的信息，根据登录凭证
+        if (!Objects.equals(requestParam.getUsername(), UserContext.getUsername())){
+            throw new ClientException("当前登录用户修改异常");
+        }
         UserDO userDO = BeanUtil.toBean(requestParam, UserDO.class);
         LambdaUpdateWrapper<UserDO> eq = Wrappers.lambdaUpdate(UserDO.class).eq(UserDO::getUsername, requestParam.getUsername());
         baseMapper.update(BeanUtil.toBean(requestParam,UserDO.class),eq);

@@ -27,7 +27,7 @@ public class ShortLinkController {
      * @param requestParam
      * @return TODO sentinal进行限流
      */
-    @PostMapping("/api/short-link/v1/create")
+    @PostMapping("/api/short-link/admin/v1/create")
     public Result<ShortLinkCreateRespDTO> createShortLink(@RequestBody ShortLinkCreateReqDTO requestParam){
         return projectClient.createShortLink(requestParam);
     }
@@ -37,7 +37,7 @@ public class ShortLinkController {
      * @param requestParam
      * @return
      */
-    @PostMapping("/api/short-link/v1/create/by-lock")
+    @PostMapping("/api/short-link/admin/v1/create/by-lock")
     public Result<ShortLinkCreateRespDTO> createShortLinkByLock(@RequestBody ShortLinkCreateReqDTO requestParam){
         return projectClient.createShortLink(requestParam);
     }
@@ -47,7 +47,7 @@ public class ShortLinkController {
      * @param requestParam
      * @return
      */
-    @PostMapping("/api/short-link/v1/create/batch")
+    @PostMapping("/api/short-link/admin/v1/create/batch")
     public Result<ShortLinkBatchCreateRespDTO> batchCreateShortLink(@RequestBody ShortLinkBatchCreateReqDTO requestParam){
         return projectClient.batchCreateShortLink(requestParam);
     }
@@ -56,14 +56,14 @@ public class ShortLinkController {
      * @param requestParam
      * @return
      */
-    @GetMapping("/api/short-link/v1/page")
+    @GetMapping("/api/short-link/admin/v1/page")
     public Result<Page<ShortLinkPageRespDTO>> shortLinkPageQuery(ShortLinkPageReqDTO requestParam){
         return projectClient.pageShortLink(requestParam.getGid(),requestParam.getOrderTag(),requestParam.getCurrent(),requestParam.getSize());
     }
     /**
      * 修改短链接
      */
-    @PostMapping("/api/short-link/v1/update")
+    @PostMapping("/api/short-link/admin/v1/update")
     public Result<Void> updateShortLink(@RequestBody ShortLinkUpdateReqDTO requestParam){
         projectClient.updateShortLink(requestParam);
         return Results.success();

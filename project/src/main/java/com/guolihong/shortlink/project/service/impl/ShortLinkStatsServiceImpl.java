@@ -42,8 +42,7 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
         ShortLinkStatsRespDTO pvUvUidStatsByShortLink=linkAccessLogsMapper.findPvUvUidStatsByShortLink(requestParam);
         //基础访问详情(每日访问详情pv,uv,uip)
         List<ShortLinkStatsAccessDailyRespDTO> daily=new ArrayList<>();
-        List<String> rangeDate = DateUtil.rangeToList(DateUtil.parse(requestParam.getStartDate()), DateUtil.parse(requestParam.getStartDate()), DateField.DAY_OF_MONTH)
-                .stream()
+        List<String> rangeDate = DateUtil.rangeToList(DateUtil.parse(requestParam.getStartDate()), DateUtil.parse(requestParam.getEndDate()), DateField.DAY_OF_MONTH).stream()
                 .map(DateUtil::formatDate)
                 .toList();
         rangeDate.forEach(e->linkAccessStatsDOS.stream().filter(item-> Objects.equals(e,item.getDate()))
@@ -107,7 +106,7 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
         for (int i = 1; i < 8; i++) {
             AtomicInteger weekday=new AtomicInteger(i);
             int weekdayCnt = weekdayStatsByShortLink.stream()
-                    .filter(e -> Objects.equals(e.getWeekday(), weekday))
+                    .filter(e -> Objects.equals(e.getWeekday(), weekday.get()))
                     .findFirst()
                     .map(LinkAccessStatsDO::getPv)
                     .orElse(0);

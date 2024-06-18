@@ -52,7 +52,6 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             "    tlal.full_short_url = #{param.fullShortUrl} " +
             "    AND tl.gid = #{param.gid} " +
             "    AND tl.del_flag = '0' " +
-            "    AND tl.enable_status = #{param.enableStatus} " +
             "    AND tlal.create_time BETWEEN #{param.startDate} and #{param.endDate} " +
             "GROUP BY " +
             "    tlal.full_short_url, tl.gid;")
@@ -71,7 +70,6 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             "    tlal.full_short_url = #{param.fullShortUrl} " +
             "    AND tl.gid = #{param.gid} " +
             "    AND tl.del_flag = '0' " +
-            "    AND tl.enable_status = #{param.enableStatus} " +
             "    AND tlal.create_time BETWEEN #{param.startDate} and #{param.endDate} " +
             "GROUP BY " +
             "    tlal.full_short_url, tl.gid, tlal.ip " +
@@ -95,7 +93,6 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             "    WHERE " +
             "        tlal.full_short_url = #{param.fullShortUrl} " +
             "        AND tl.gid = #{param.gid} " +
-            "        AND tl.enable_status = #{param.enableStatus} " +
             "        AND tl.del_flag = '0' " +
             "    GROUP BY " +
             "        tlal.user " +
@@ -164,7 +161,7 @@ public interface LinkAccessLogsMapper extends BaseMapper<LinkAccessLogsDO> {
             "GROUP BY " +
             "    tlal.user;" +
             "</script>")
-    List<Map<String, Object>> selectUvTypeByUsers(String gid, String fullShortUrl, Integer enableStatus, String startDate, String endDate, @Param("userList") List<String> userList);
+    List<Map<String, Object>> selectUvTypeByUsers(@Param("gid") String gid,@Param("fullShortUrl") String fullShortUrl,@Param("enableStatus") Integer enableStatus,@Param("startDate") String startDate,@Param("endDate") String endDate, @Param("userList") List<String> userList);
     /**
      * 获取分组用户信息是否新老访客
      */

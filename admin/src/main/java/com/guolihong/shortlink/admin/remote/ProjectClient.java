@@ -127,7 +127,7 @@ public interface ProjectClient {
      * @return 分组短链接监控信息
      */
     @GetMapping("/api/short-link/v1/stats/group")
-    Result<ShortLinkStatsRespDTO> groupShortLinkStats(@RequestParam("gid") String gid,
+    Result<ShortLinkGroupStatsRespDTO> groupShortLinkStats(@RequestParam("gid") String gid,
                                                       @RequestParam("startDate") String startDate,
                                                       @RequestParam("endDate") String endDate);
 

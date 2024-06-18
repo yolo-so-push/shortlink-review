@@ -41,27 +41,29 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
         //log表每访问一次产生一条记录（查询当前短链接指定时间的所有访问数据集合）
         ShortLinkStatsRespDTO pvUvUidStatsByShortLink=linkAccessLogsMapper.findPvUvUidStatsByShortLink(requestParam);
         //基础访问详情(每日访问详情pv,uv,uip)
-        List<ShortLinkStatsAccessDailyRespDTO> daily=new ArrayList<>();
-        List<String> rangeDate = DateUtil.rangeToList(DateUtil.parse(requestParam.getStartDate()), DateUtil.parse(requestParam.getEndDate()), DateField.DAY_OF_MONTH).stream()
+        List<ShortLinkStatsAccessDailyRespDTO> daily = new ArrayList<>();
+        List<String> rangeDates = DateUtil.rangeToList(DateUtil.parse(requestParam.getStartDate()), DateUtil.parse(requestParam.getEndDate()), DateField.DAY_OF_MONTH).stream()
                 .map(DateUtil::formatDate)
                 .toList();
-        rangeDate.forEach(e->linkAccessStatsDOS.stream().filter(item-> Objects.equals(e,item.getDate()))
-                .findFirst().ifPresentOrElse(item->{
-                    ShortLinkStatsAccessDailyRespDTO dailyRespDTO = ShortLinkStatsAccessDailyRespDTO.builder()
-                            .date(e)
+        rangeDates.forEach(each -> linkAccessStatsDOS.stream()
+                .filter(item -> Objects.equals(each, DateUtil.formatDate(item.getDate())))
+                .findFirst()
+                .ifPresentOrElse(item -> {
+                    ShortLinkStatsAccessDailyRespDTO accessDailyRespDTO = ShortLinkStatsAccessDailyRespDTO.builder()
+                            .date(each)
                             .pv(item.getPv())
-                            .uip(item.getUip())
                             .uv(item.getUv())
+                            .uip(item.getUip())
                             .build();
-                    daily.add(dailyRespDTO);
-                },()->{
-                    ShortLinkStatsAccessDailyRespDTO dailyRespDTO = ShortLinkStatsAccessDailyRespDTO.builder()
-                            .date(e)
+                    daily.add(accessDailyRespDTO);
+                }, () -> {
+                    ShortLinkStatsAccessDailyRespDTO accessDailyRespDTO = ShortLinkStatsAccessDailyRespDTO.builder()
+                            .date(each)
                             .pv(0)
-                            .uip(0)
                             .uv(0)
+                            .uip(0)
                             .build();
-                    daily.add(dailyRespDTO);
+                    daily.add(accessDailyRespDTO);
                 }));
         //地区访问详情
         List<ShortLinkStatsLocaleCNRespDTO> localeCNRespDTOS=new ArrayList<>();

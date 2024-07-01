@@ -9,6 +9,7 @@
         <outputRelativeToContentRoot value="true" />
         <module name="project" />
         <module name="admin" />
+        <module name="aggregation" />
         <module name="gateway" />
       </profile>
     </annotationProcessing>

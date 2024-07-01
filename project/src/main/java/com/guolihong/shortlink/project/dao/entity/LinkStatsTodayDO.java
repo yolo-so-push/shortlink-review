@@ -65,4 +65,5 @@ public class LinkStatsTodayDO extends BaseDO {
      * 今日ip数
      */
     private Integer todayUip;
+    private String gid;
 }

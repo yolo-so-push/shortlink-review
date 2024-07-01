@@ -61,4 +61,5 @@ public class LinkNetworkStatsDO extends BaseDO {
      * 访问网络
      */
     private String network;
+    private String gid;
 }

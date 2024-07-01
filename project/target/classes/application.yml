@@ -9,13 +9,13 @@ spring:
     url: jdbc:shardingsphere:classpath:shardingsphere-config-${database.env:dev}.yaml
   data:
     redis:
-      host: 47.95.168.146
+      host: 123.249.120.106
       port: 6379
-      password: 009217
+      password: 123456
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
+        server-addr: 123.249.120.106:8848
     sentinel:
       transport:
         dashboard: localhost:8080
@@ -23,12 +23,18 @@ spring:
     view:
       prefix: /templates/
       suffix: .html
+  rabbitmq:
+    host: 123.249.120.106
+    port: 5672
+    virtual-host: /
+    username: glh
+    password: 123321
 short-link:
   domain:
     default: nurl.ink:8001
   stats:
-    #高德api的key
-    amqp-key: b7b2eb2f35da6ae61a33e8f30ee6902d
+    locale:
+      amap-key: b7b2eb2f35da6ae61a33e8f30ee6902d
   goto-domain:
     white-list:
       enable: false

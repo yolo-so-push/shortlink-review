@@ -23,7 +23,6 @@ import org.springframework.data.redis.connection.stream.MapRecord;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.stream.StreamListener;
-import org.springframework.stereotype.Component;
 
 import java.util.Date;
 import java.util.HashMap;
@@ -34,7 +33,7 @@ import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.L
 import static com.guolihong.shortlink.project.common.constant.ShortLinkConstant.AMAP_REMOTE_URL;
 
 @Slf4j
-@Component
+//@Component
 @RequiredArgsConstructor
 public class ShortLinkStatsConsumer implements StreamListener<String, MapRecord<String, String, String>> {
     private final StringRedisTemplate stringRedisTemplate;
@@ -43,8 +42,8 @@ public class ShortLinkStatsConsumer implements StreamListener<String, MapRecord<
     private final ShortLinkGotoMapper shortLinkGotoMapper;
     private final ShortLinkMapper shortLinkMapper;
     private final LinkAccessStatsMapper linkAccessStatsMapper;
-    @Value("${short-link.stats.amqp-key}")
-    private String amqpKey;
+    @Value("${short-link.stats.locale.amap-key}")
+    private String statsLocaleAmapKey;
     private final LinkLocaleStatsMapper linkLocaleStatsMapper;
     private final LinkOsStatsMapper linkOsStatsMapper;
     private final LinkBrowserStatsMapper linkBrowserStatsMapper;
@@ -107,7 +106,7 @@ public class ShortLinkStatsConsumer implements StreamListener<String, MapRecord<
                     .build();
             linkAccessStatsMapper.shortLinkStats(linkAccessStatsDO);
             Map<String, Object> localeParamMap = new HashMap<>();
-            localeParamMap.put("key", amqpKey);
+            localeParamMap.put("key", statsLocaleAmapKey);
             localeParamMap.put("ip", statsRecord.getRemoteAddr());
             String localeResultStr = HttpUtil.get(AMAP_REMOTE_URL, localeParamMap);
             JSONObject localeResultObj = JSON.parseObject(localeResultStr);

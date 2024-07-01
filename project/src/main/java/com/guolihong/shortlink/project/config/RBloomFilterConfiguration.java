@@ -5,7 +5,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-@Configuration("userRBloomFilterConfiguration")
+@Configuration(value = "rBloomFilterConfigurationByProject")
 public class RBloomFilterConfiguration {
     /**
      * 短链接生成避免查询数据库布隆过滤器

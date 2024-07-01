@@ -10,7 +10,7 @@ import java.util.Date;
 /**
  * mybatis-plus元数据自动填充类
  */
-@Component
+@Component(value = "myMetaObjectHandlerByAdmin")
 @Primary
 public class MyMetaObjectHandler implements MetaObjectHandler {
 

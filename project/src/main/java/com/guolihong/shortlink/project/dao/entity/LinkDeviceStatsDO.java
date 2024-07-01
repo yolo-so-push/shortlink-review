@@ -60,4 +60,5 @@ public class LinkDeviceStatsDO extends BaseDO {
      * 访问设备
      */
     private String device;
+    private String gid;
 }

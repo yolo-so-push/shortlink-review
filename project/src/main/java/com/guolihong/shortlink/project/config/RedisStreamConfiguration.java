@@ -3,7 +3,6 @@ package com.guolihong.shortlink.project.config;
 import com.guolihong.shortlink.project.mq.consumer.ShortLinkStatsConsumer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.stream.Consumer;
 import org.springframework.data.redis.connection.stream.MapRecord;
@@ -24,7 +23,7 @@ import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.S
 /**
  * Redis Stream 消息队列配置
  */
-@Configuration
+//@Configuration
 @RequiredArgsConstructor
 public class RedisStreamConfiguration {
 

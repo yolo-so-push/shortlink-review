@@ -20,15 +20,16 @@ import org.springframework.stereotype.Service;
 
 import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.GOTO_IS_NULL_SHORT_LINK_KEY;
 import static com.guolihong.shortlink.project.common.constant.RedisKeyConstant.GOTO_SHORT_LINK_KEY;
-
 @Service
 @Slf4j
 @RequiredArgsConstructor
 public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper,ShortLinkDO> implements RecycleBinService {
     private final StringRedisTemplate stringRedisTemplate;
+
     /**
      * 短链接移入回收站
      * @param requestParam
+     *
      */
     @Override
     public void saveRecycleBin(RecycleBinSaveReqDTO requestParam) {
@@ -51,6 +52,7 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper,ShortLink
      */
     @Override
     public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkRecycleBinPageReqDTO requestParam) {
+
         IPage<ShortLinkDO> shortLinkDOIPage = baseMapper.recyclePageLink(requestParam);
         return shortLinkDOIPage.convert(e->{
             ShortLinkPageRespDTO shortLinkPageRespDTO=BeanUtil.toBean(e, ShortLinkPageRespDTO.class);

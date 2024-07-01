@@ -8,10 +8,10 @@ spring:
      active: dev
   data:
     redis:
-      host: 47.95.168.146
+      host: 123.249.120.106
       port: 6379
-      password: 009217
+      password: 123456
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:8848
+        server-addr: 123.249.120.106:8848
